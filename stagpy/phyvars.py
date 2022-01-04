@@ -50,6 +50,9 @@ FIELD: Mapping[str, Varf] = MappingProxyType({
     'rs3': Varf('z Momentum residue', '1'),
     'rsc': Varf('Continuity residue', '1'),
     'prim': Varf('Primordial layer', '1'),
+    'wisotope': Varf('182W/184W', '1'),
+    'epsilonW': Varf('epsilon 182W/184W', '1'),
+    'basalt': Varf('Basalt', 'percentage')
 })
 
 FIELD_EXTRA: Mapping[str, Callable[[Step], Field]] = MappingProxyType({
@@ -72,6 +75,9 @@ FIELD_FILES: Mapping[str, List[str]] = MappingProxyType({
     'ed': ['edot'],
     'tcond': ['Tcond1', 'Tcond2', 'Tcond3'],
     'prm': ['prim'],
+    'W182': ['wisotope'],
+    'epsil': ['epsilonW'],
+    'bs': ['basalt'],
 })
 
 FIELD_FILES_H5: Mapping[str, List[str]] = MappingProxyType({

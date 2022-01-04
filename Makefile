@@ -48,7 +48,7 @@ clean:
 	-rm -rf $(VENV_DIR)
 	-rm -rf stagpy.egg-info
 
-again: clean all
+again: clean all notebook-kernel
 
 release:
 ifneq ($(BRANCH),master)
