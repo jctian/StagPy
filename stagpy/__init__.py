@@ -17,21 +17,19 @@ and uppercase versions of those.
 """
 
 from __future__ import annotations
+import importlib.resources as imlr
 import os
-import pathlib
 import shutil
 import signal
 import sys
 import typing
 
-from pkg_resources import get_distribution, DistributionNotFound
 from setuptools_scm import get_version
-from loam.manager import ConfigurationManager
 
-from . import config
+from . import config, _styles
 
 if typing.TYPE_CHECKING:
-    from typing import NoReturn, Any
+    from typing import NoReturn, Any, Iterator
 
 
 def _env(var: str) -> bool:
@@ -54,6 +52,12 @@ def sigint_handler(*_: Any) -> NoReturn:
     sys.exit()
 
 
+def _iter_styles() -> Iterator[str]:
+    for resource in imlr.contents(_styles):
+        if resource.endswith(".mplstyle"):
+            yield resource
+
+
 def _check_config() -> None:
     """Create config files as necessary."""
     config.CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -62,38 +66,12 @@ def _check_config() -> None:
     if not uptodate:
         verfile.write_text(__version__)
     if not (uptodate and config.CONFIG_FILE.is_file()):
-        conf.create_config_(update=True)
-    for stfile in ('stagpy-paper.mplstyle',
-                   'stagpy-slides.mplstyle'):
+        conf.to_file_(config.CONFIG_FILE)
+    for stfile in _iter_styles():
         stfile_conf = config.CONFIG_DIR / stfile
         if not (uptodate and stfile_conf.is_file()):
-            stfile_local = pathlib.Path(__file__).parent / stfile
-            shutil.copy(str(stfile_local), str(stfile_conf))
-
-
-def load_mplstyle() -> None:
-    """Try to load conf.plot.mplstyle matplotlib style."""
-    import matplotlib.pyplot as plt
-    if conf.plot.mplstyle:
-        for style in conf.plot.mplstyle.split():
-            found = False
-            if not ISOLATED:
-                stfile = config.CONFIG_DIR / (style + '.mplstyle')
-                if stfile.is_file():
-                    found = True
-                    style = str(stfile)
-            if not found:
-                # try local version
-                stfile = pathlib.Path(__file__).parent / (style + '.mplstyle')
-                if stfile.is_file():
-                    style = str(stfile)
-            try:
-                plt.style.use(style)
-            except OSError:
-                print(f'Cannot import style {style}.', file=sys.stderr)
-                conf.plot.mplstyle = ''
-    if conf.plot.xkcd:
-        plt.xkcd()
+            with imlr.path(_styles, stfile) as stfile_local:
+                shutil.copy(str(stfile_local), str(stfile_conf))
 
 
 if DEBUG:
@@ -105,19 +83,17 @@ else:
 try:
     __version__ = get_version(root='..', relative_to=__file__)
 except LookupError:
-    __version__ = get_distribution('stagpy').version
-except (DistributionNotFound, ValueError):
-    __version__ = 'unknown'
+    try:
+        from ._version import version as __version__
+    except ImportError:
+        __version__ = "unknown"
 
-_CONF_FILES = ([config.CONFIG_FILE, config.CONFIG_LOCAL]
-               if not ISOLATED else [])
-conf = ConfigurationManager.from_dict_(config.CONF_DEF)
-conf.set_config_files_(*_CONF_FILES)
+conf = config.Config.default_()
 if not ISOLATED:
     _check_config()
-PARSING_OUT = conf.read_configs_()
-
-load_mplstyle()
+    conf.update_from_file_(config.CONFIG_FILE)
+    if config.CONFIG_LOCAL.is_file():
+        conf.update_from_file_(config.CONFIG_LOCAL)
 
 if not DEBUG:
     signal.signal(signal.SIGINT, _PREV_INT)

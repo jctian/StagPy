@@ -3,14 +3,18 @@
 from __future__ import annotations
 from inspect import isfunction
 from types import MappingProxyType
+import importlib.resources as imlr
 import typing
 
-from loam.tools import set_conf_str, create_complete_files
 from loam.cli import Subcmd, CLIManager
+import matplotlib.pyplot as plt
+import matplotlib.style as mpls
 
 from . import __doc__ as doc_module
-from . import conf, PARSING_OUT, load_mplstyle
-from . import commands, field, rprof, time_series, refstate, plates
+from . import conf, ISOLATED
+from . import (
+    commands, config, field, rprof, time_series, refstate, plates, _styles,
+)
 from ._helpers import baredoc
 from .config import CONFIG_DIR
 
@@ -28,6 +32,25 @@ def _bare_cmd() -> None:
     """Print help message when no arguments are given."""
     print(doc_module)
     print('Run `stagpy -h` for usage')
+
+
+def _load_mplstyle() -> None:
+    """Try to load conf.plot.mplstyle matplotlib style."""
+    for style in conf.plot.mplstyle:
+        style_fname = style + ".mplstyle"
+        if not ISOLATED:
+            stfile = config.CONFIG_DIR / style_fname
+            if stfile.is_file():
+                mpls.use(str(stfile))
+                continue
+        # try packaged version
+        if imlr.is_resource(_styles, style_fname):
+            with imlr.path(_styles, style_fname) as stfile:
+                mpls.use(str(stfile))
+                continue
+        mpls.use(style)
+    if conf.plot.xkcd:
+        plt.xkcd()
 
 
 SUB_CMDS = MappingProxyType({
@@ -58,7 +81,12 @@ def parse_args(arglist: Optional[List[str]] = None) -> Callable[[], None]:
     """
     climan = CLIManager(conf, **SUB_CMDS)
 
-    create_complete_files(climan, CONFIG_DIR, 'stagpy', zsh_sourceable=True)
+    bash_script = CONFIG_DIR / "bash" / "stagpy.sh"
+    bash_script.parent.mkdir(parents=True, exist_ok=True)
+    climan.bash_complete(bash_script, "stagpy")
+    zsh_script = CONFIG_DIR / "zsh" / "_stagpy.sh"
+    zsh_script.parent.mkdir(parents=True, exist_ok=True)
+    climan.zsh_complete(zsh_script, "stagpy", sourceable=True)
 
     cmd_args = climan.parse_args(arglist)
     sub_cmd = cmd_args.loam_sub_name
@@ -66,15 +94,9 @@ def parse_args(arglist: Optional[List[str]] = None) -> Callable[[], None]:
     if sub_cmd is None:
         return cmd_args.func
 
-    if sub_cmd != 'config':
-        commands.report_parsing_problems(PARSING_OUT)
-
-    if conf.common.set:
-        set_conf_str(conf, conf.common.set)
-
     if conf.common.config:
         commands.config_pp(climan.sections_list(sub_cmd))
 
-    load_mplstyle()
+    _load_mplstyle()
 
     return cmd_args.func

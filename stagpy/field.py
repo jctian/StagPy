@@ -15,7 +15,7 @@ from .error import NotAvailableError
 from .stagyydata import StagyyData
 
 if typing.TYPE_CHECKING:
-    from typing import Tuple, Optional, Any, Iterable, Dict
+    from typing import Tuple, Optional, Any, Iterable, Dict, Union
     from numpy import ndarray
     from matplotlib.axes import Axes
     from matplotlib.figure import Figure
@@ -35,9 +35,9 @@ def _threed_extract(
     """Return suitable slices and coords for 3D fields."""
     is_vector = not valid_field_var(var)
     hwalls = is_vector or walls
-    i_x = conf.field.ix
-    i_y = conf.field.iy
-    i_z = conf.field.iz
+    i_x: Optional[Union[int, slice]] = conf.field.ix
+    i_y: Optional[Union[int, slice]] = conf.field.iy
+    i_z: Optional[Union[int, slice]] = conf.field.iz
     if i_x is not None or i_y is not None:
         i_z = None
     if i_x is not None or i_z is not None:
@@ -59,6 +59,7 @@ def _threed_extract(
         ycoord = step.geom.y_walls if hwalls else step.geom.y_centers
         i_x = i_y = slice(None)
         varx, vary = var + '1', var + '2'
+    data: Any
     if is_vector:
         data = (step.fields[varx].values[i_x, i_y, i_z, 0],
                 step.fields[vary].values[i_x, i_y, i_z, 0])
@@ -215,14 +216,14 @@ def plot_scalar(step: Step, var: str, field: Optional[ndarray] = None,
     else:
         fig = axis.get_figure()
 
-    if step.sdat.par['magma_oceans_in']['magma_oceans_mode']:
+    if step.sdat.par['magma_oceans_in']['evolving_magma_oceans']:
         rcmb = step.sdat.par['geometry']['r_cmb']
         xmax = rcmb + 1
         ymax = xmax
         xmin = -xmax
         ymin = -ymax
         rsurf = xmax if step.timeinfo['thick_tmo'] > 0 \
-            else step.geom.r_walls[0, 0, -3]
+            else step.geom.r_walls[-3]
         cmb = mpat.Circle((0, 0), rcmb, color='dimgray', zorder=0)
         psurf = mpat.Circle((0, 0), rsurf, color='indianred', zorder=0)
         axis.add_patch(psurf)
@@ -284,7 +285,7 @@ def plot_iso(axis: Axes, step: Step, var: str,
         fld = np.roll(fld, conf.field.shift, axis=0)
     extra_opts: Dict[str, Any] = dict(linewidths=1)
     if 'cmap' not in extra and conf.field.isocolors:
-        extra_opts['colors'] = conf.field.isocolors.split(',')
+        extra_opts['colors'] = conf.field.isocolors
     elif 'colors' not in extra:
         extra_opts['cmap'] = conf.field.cmap.get(var)
     if conf.plot.isolines:
@@ -343,9 +344,8 @@ def cmd() -> None:
         conf.core
     """
     sdat = StagyyData()
-    lovs = _helpers.list_of_vars(conf.field.plot)
     # no more than two fields in a subplot
-    lovs = [[slov[:2] for slov in plov] for plov in lovs]
+    lovs = [[slov[:2] for slov in plov] for plov in conf.field.plot]
     minmax = {}
     if conf.plot.cminmax:
         conf.plot.vmin = None
