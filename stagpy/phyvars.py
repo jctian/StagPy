@@ -50,8 +50,13 @@ FIELD: Mapping[str, Varf] = MappingProxyType({
     'rs3': Varf('z Momentum residue', '1'),
     'rsc': Varf('Continuity residue', '1'),
     'prim': Varf('Primordial layer', '1'),
-    'wisotope': Varf('182W/184W', '1'),
-    'epsilonW': Varf('epsilon 182W/184W', '1'),
+    'W182': Varf('isotope W182', '1'),
+    'W182': Varf('isotope W184', '1'),
+    'Hf182': Varf('isotope Hf182', '1'),
+    'Sm146': Varf('isotope Sm146', '1'),
+    'Nd144': Varf('isotope Nd144', '1'),
+    'Nd142': Varf('isotope Nd142', '1'),
+
     'basalt': Varf('Basalt', 'percentage')
 })
 
@@ -75,8 +80,12 @@ FIELD_FILES: Mapping[str, List[str]] = MappingProxyType({
     'ed': ['edot'],
     'tcond': ['Tcond1', 'Tcond2', 'Tcond3'],
     'prm': ['prim'],
-    'W182': ['wisotope'],
-    'epsil': ['epsilonW'],
+    'W182': ['W182'],
+    'W184': ['W184'],
+    'Hf182': ['Hf182'],
+    'Sm146': ['Sm146'],
+    'Nd142': ['Nd142'],
+    'Nd144': ['Nd144'],
     'bs': ['basalt'],
 })
 
